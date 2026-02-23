@@ -4,21 +4,33 @@ export interface BomNode {
   description: string
   quantity: number
   uom: string
-  effectiveDate: string
-  expiryDate?: string
-  sourceSystem: string
-  status: string
+  supplier?: string
   children: BomNode[]
-  metadata: Record<string, unknown>
+}
+
+export interface BomMeta {
+  version: string
+  sourceSystem: string
+  status: 'Released' | 'In Review' | 'Draft' | 'Active'
+  effectiveDate: string
+  owner: string
 }
 
 export interface BomVersion {
-  type: string
+  id: string
+  type: 'EBOM' | 'MBOM' | 'SERVICE'
   label: string
-  sourceSystem: string
-  lastUpdated: string
-  editableInMdm: boolean
+  dropdownLabel: string
+  meta: BomMeta
   root: BomNode
+  nodeCount: number
+}
+
+export interface Product {
+  id: string
+  modelNumber: string
+  description: string
+  versions: BomVersion[]
 }
 
 export type DiffStatus = 'ADDED' | 'REMOVED' | 'MODIFIED' | 'UNCHANGED'
@@ -36,4 +48,12 @@ export interface DiffNode {
   right?: BomNode
   changedFields?: ChangedField[]
   children: DiffNode[]
+}
+
+export interface DiffEntry {
+  status: DiffStatus
+  component: string
+  attribute: string
+  bomAValue: string
+  bomBValue: string
 }

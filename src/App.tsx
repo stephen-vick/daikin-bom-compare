@@ -1,103 +1,119 @@
-import { useMemo, useState } from 'react'
-import { BomDiff } from './components/BomDiff/BomDiff'
-import { BomPanel } from './components/BomPanel/BomPanel'
-import { ExportControls } from './components/Export/ExportControls'
-import { RecordDetailDrawer } from './components/RecordDetail/RecordDetailDrawer'
-import { Toolbar } from './components/Toolbar/Toolbar'
-import { useBomsForEntity } from './hooks/useBomsForEntity'
-import { useDiff } from './hooks/useDiff'
+import { useMemo } from 'react'
+import { Header } from './components/Header'
+import { Toolbar } from './components/Toolbar'
+import { EmptyState } from './components/EmptyState'
+import { SideBySideView } from './components/SideBySideView'
+import { DeltaSummaryView } from './components/DeltaSummaryView'
+import { MetadataView } from './components/MetadataView'
+import { Footer } from './components/Footer'
+import { getProduct, getVersion } from './data/mockData'
 import { usePortalStore } from './store/usePortalStore'
-import type { BomNode } from './types/bom'
+import { treeDiff, countNodeChanges, flattenDiff } from './utils/treeDiff'
 
 function App() {
-  const [selectedNode, setSelectedNode] = useState<BomNode>()
-  const { data: versions, isLoading, isError, error } = useBomsForEntity()
   const {
-    selectedTypes,
-    leftType,
-    rightType,
-    detailOpen,
-    setSelectedTypes,
-    setLeftType,
-    setRightType,
-    openDetail,
-    closeDetail,
+    productId, bomAId, bomBId, compared,
+    activeTab, showDiffsOnly, searchQuery,
+    setActiveTab, setShowDiffsOnly, setSearchQuery,
   } = usePortalStore()
 
-  const visibleVersions = useMemo(() => {
-    return (versions ?? []).filter((version) => selectedTypes.includes(version.type))
-  }, [versions, selectedTypes])
+  const product = getProduct(productId)
+  const bomA = getVersion(productId, bomAId)
+  const bomB = getVersion(productId, bomBId)
 
-  const leftVersion = useMemo(() => versions?.find((version) => version.type === leftType), [versions, leftType])
-  const rightVersion = useMemo(() => versions?.find((version) => version.type === rightType), [versions, rightType])
+  const diff = useMemo(() => {
+    if (!compared || !bomA || !bomB) return undefined
+    return treeDiff(bomA.root, bomB.root)
+  }, [compared, bomA, bomB])
 
-  const { diff, summary } = useDiff(leftVersion, rightVersion)
+  const counts = useMemo(() => {
+    if (!diff) return { added: 0, removed: 0, changed: 0 }
+    return countNodeChanges(diff)
+  }, [diff])
 
-  const onSelectNode = (node: BomNode) => {
-    setSelectedNode(node)
-    openDetail(node.id)
-  }
+  const totalDiffs = counts.added + counts.removed + counts.changed
+  const totalNodes = (bomA?.nodeCount ?? 0) + (bomB?.nodeCount ?? 0)
 
-  const onToggleType = (type: string) => {
-    if (selectedTypes.includes(type)) {
-      const next = selectedTypes.filter((item) => item !== type)
-      if (next.length > 0) {
-        setSelectedTypes(next)
-      }
-      return
-    }
-    setSelectedTypes([...selectedTypes, type])
-  }
-
-  if (isLoading) {
-    return <div className="center-state">Loading BOM data...</div>
-  }
-
-  if (isError) {
-    return <div className="center-state">Failed to load BOM data: {(error as Error).message}</div>
-  }
-
-  if (!versions || versions.length === 0) {
-    return <div className="center-state">No BOM versions found.</div>
-  }
+  const uniqueChangedComponents = useMemo(() => {
+    if (!diff) return 0
+    const flat = flattenDiff(diff)
+    return flat.filter((n) => n.status !== 'UNCHANGED' && (n.children.length === 0 || (n.changedFields && n.changedFields.length > 0))).length
+  }, [diff])
 
   return (
     <div className="app">
-      <Toolbar
-        versions={versions}
-        selectedTypes={selectedTypes}
-        leftType={leftType}
-        rightType={rightType}
-        onToggleType={onToggleType}
-        onSetLeftType={setLeftType}
-        onSetRightType={setRightType}
+      <Header />
+      <Toolbar />
+
+      {compared && bomA && bomB && diff ? (
+        <>
+          <div className="sub-toolbar">
+            <button
+              className={`btn-toggle ${showDiffsOnly ? 'active' : ''}`}
+              onClick={() => setShowDiffsOnly(!showDiffsOnly)}
+            >
+              &#9998; {showDiffsOnly ? 'Showing diffs only' : 'Show diffs only'}
+            </button>
+
+            <div className="tab-bar">
+              <button
+                className={`tab-item ${activeTab === 'side-by-side' ? 'active' : ''}`}
+                onClick={() => setActiveTab('side-by-side')}
+              >
+                &#9776; Side-by-Side
+              </button>
+              <button
+                className={`tab-item ${activeTab === 'delta-summary' ? 'active' : ''}`}
+                onClick={() => setActiveTab('delta-summary')}
+              >
+                &#9636; Delta Summary <span className="tab-badge">{uniqueChangedComponents}</span>
+              </button>
+              <button
+                className={`tab-item ${activeTab === 'metadata' ? 'active' : ''}`}
+                onClick={() => setActiveTab('metadata')}
+              >
+                &#9881; Metadata
+              </button>
+            </div>
+
+            <div className="search-box">
+              &#128269;
+              <input
+                type="text"
+                placeholder="Search components..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="main-content">
+            {activeTab === 'side-by-side' && (
+              <SideBySideView
+                bomA={bomA}
+                bomB={bomB}
+                diff={diff}
+                showDiffsOnly={showDiffsOnly}
+                searchQuery={searchQuery}
+              />
+            )}
+            {activeTab === 'delta-summary' && <DeltaSummaryView diff={diff} />}
+            {activeTab === 'metadata' && <MetadataView bomA={bomA} bomB={bomB} />}
+          </div>
+        </>
+      ) : (
+        <EmptyState />
+      )}
+
+      <Footer
+        compared={compared}
+        totalNodes={totalNodes}
+        diffCount={totalDiffs}
+        added={counts.added}
+        removed={counts.removed}
+        changed={counts.changed}
+        productModel={product?.modelNumber ?? ''}
       />
-
-      <main className="workspace">
-        <div className="panel-grid">
-          {visibleVersions.map((version) => (
-            <BomPanel
-              key={version.type}
-              version={version}
-              onSelectNode={onSelectNode}
-              diff={leftVersion?.type === version.type || rightVersion?.type === version.type ? diff : undefined}
-            />
-          ))}
-        </div>
-        <BomDiff
-          summary={summary}
-          leftLabel={leftVersion?.label ?? 'N/A'}
-          rightLabel={rightVersion?.label ?? 'N/A'}
-        />
-      </main>
-
-      <footer className="status-bar">
-        <span>Visible BOMs: {visibleVersions.length}</span>
-        <span>Diff changes: {summary.length}</span>
-        <ExportControls />
-      </footer>
-
-      <RecordDetailDrawer node={selectedNode} open={detailOpen} onClose={closeDetail} />
     </div>
   )
 }
