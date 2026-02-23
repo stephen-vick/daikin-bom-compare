@@ -4,7 +4,11 @@ export interface BomNode {
   description: string
   quantity: number
   uom: string
+  category?: string
   supplier?: string
+  warrantyMonths?: number
+  lifecycleStatus?: string
+  isReplaceable?: boolean
   children: BomNode[]
 }
 
@@ -52,6 +56,7 @@ export interface DiffNode {
 
 export interface DiffEntry {
   status: DiffStatus
+  path: string
   component: string
   attribute: string
   bomAValue: string

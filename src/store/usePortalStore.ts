@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { PRODUCTS } from '../data/mockData'
 
 export type TabId = 'side-by-side' | 'delta-summary' | 'metadata'
 
@@ -31,9 +32,19 @@ export const usePortalStore = create<PortalState>((set) => ({
   showDiffsOnly: false,
   searchQuery: '',
 
-  setProductId: (id) => set({ productId: id, compared: false }),
-  setBomAId: (id) => set({ bomAId: id }),
-  setBomBId: (id) => set({ bomBId: id }),
+  setProductId: (id) => {
+    const prod = PRODUCTS.find((p) => p.id === id)
+    const versions = prod?.versions ?? []
+    set({
+      productId: id,
+      bomAId: versions[0]?.id ?? '',
+      bomBId: versions[1]?.id ?? '',
+      compared: false,
+      searchQuery: '',
+    })
+  },
+  setBomAId: (id) => set({ bomAId: id, compared: false }),
+  setBomBId: (id) => set({ bomBId: id, compared: false }),
   compare: () => set({ compared: true, activeTab: 'side-by-side', showDiffsOnly: false, searchQuery: '' }),
   resetComparison: () => set({ compared: false }),
   setActiveTab: (tab) => set({ activeTab: tab }),

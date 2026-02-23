@@ -41,28 +41,35 @@ export function DeltaSummaryView({ diff }: Props) {
         </button>
       </div>
 
-      <table className="delta-table">
-        <thead>
-          <tr>
-            <th style={{ width: 60 }}>Type</th>
-            <th style={{ width: 180 }}>Component</th>
-            <th style={{ width: 140 }}>Attribute</th>
-            <th>BOM A</th>
-            <th>BOM B</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filtered.map((entry, i) => (
-            <tr key={i}>
-              <td><span className={`delta-type-badge ${badgeClass(entry.status)}`}>{badgeLabel(entry.status)}</span></td>
-              <td className="delta-component">{entry.component}</td>
-              <td>{entry.attribute}</td>
-              <td className="delta-bom-val">{entry.bomAValue}</td>
-              <td className="delta-bom-val">{entry.bomBValue}</td>
+      <div className="delta-scroll">
+        <table className="delta-table">
+          <thead>
+            <tr>
+              <th style={{ width: 60 }}>Type</th>
+              <th>Path</th>
+              <th style={{ width: 120 }}>Attribute</th>
+              <th style={{ width: 180 }}>BOM A</th>
+              <th style={{ width: 180 }}>BOM B</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {filtered.map((entry, i) => (
+              <tr key={i}>
+                <td><span className={`delta-type-badge ${badgeClass(entry.status)}`}>{badgeLabel(entry.status)}</span></td>
+                <td className="delta-path">{entry.path}</td>
+                <td className="delta-attr">{entry.attribute}</td>
+                <td className="delta-val-a">{entry.bomAValue}</td>
+                <td className="delta-val-b">{entry.bomBValue}</td>
+              </tr>
+            ))}
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={5} className="delta-empty">No differences of this type found</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

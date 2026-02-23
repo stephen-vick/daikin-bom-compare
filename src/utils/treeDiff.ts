@@ -1,10 +1,13 @@
 import type { BomNode, ChangedField, DiffEntry, DiffNode, DiffStatus } from '../types/bom'
 
-const COMPARED_FIELDS: Array<{ key: keyof BomNode; label: string }> = [
+const COMPARED_FIELDS: Array<{ key: keyof BomNode; label: string; format?: (v: unknown) => string }> = [
   { key: 'partNumber', label: 'Part Number' },
   { key: 'description', label: 'Description' },
-  { key: 'quantity', label: 'Quantity' },
-  { key: 'supplier', label: 'Supplier' },
+  { key: 'quantity', label: 'Quantity', format: (v) => `${v} EA` },
+  { key: 'supplier', label: 'Supplier', format: (v) => (v as string) || '\u2014' },
+  { key: 'warrantyMonths', label: 'Warranty', format: (v) => v != null ? `${v}mo` : '\u2014' },
+  { key: 'lifecycleStatus', label: 'Status' },
+  { key: 'isReplaceable', label: 'Replaceable', format: (v) => v ? 'Yes' : 'No' },
 ]
 
 function getChangedFields(left: BomNode, right: BomNode): ChangedField[] {
@@ -79,43 +82,62 @@ export function flattenDiff(node: DiffNode): DiffNode[] {
   return result
 }
 
+function formatFieldValue(key: string, value: unknown): string {
+  const field = COMPARED_FIELDS.find((f) => f.label === key)
+  if (field?.format && value != null) return field.format(value)
+  return value != null ? String(value) : '\u2014'
+}
+
 export function buildDiffEntries(diff: DiffNode): DiffEntry[] {
   const entries: DiffEntry[] = []
-  const flat = flattenDiff(diff).filter((n) => n.children.length === 0 || (n.changedFields && n.changedFields.length > 0))
 
-  for (const node of flat) {
-    if (node.status === 'UNCHANGED') continue
+  function walk(node: DiffNode, parentPath: string) {
+    const partId = node.left?.partNumber ?? node.right?.partNumber ?? node.nodeId
+    const path = parentPath ? `${parentPath}/${partId}` : partId
 
-    const componentId = node.left?.partNumber ?? node.right?.partNumber ?? node.nodeId
+    if (node.status === 'UNCHANGED') {
+      node.children.forEach((c) => walk(c, path))
+      return
+    }
 
-    if (node.status === 'ADDED') {
+    const isLeaf = node.children.length === 0
+    const hasOwnChanges = node.changedFields && node.changedFields.length > 0
+
+    if (node.status === 'ADDED' && isLeaf) {
       entries.push({
         status: 'ADDED',
+        path,
         component: node.right!.partNumber,
-        attribute: 'New component',
+        attribute: 'Component',
         bomAValue: '\u2014',
-        bomBValue: node.right!.description,
+        bomBValue: node.right!.partNumber,
       })
-    } else if (node.status === 'REMOVED') {
+    } else if (node.status === 'REMOVED' && isLeaf) {
       entries.push({
         status: 'REMOVED',
+        path,
         component: node.left!.partNumber,
-        attribute: 'Removed',
-        bomAValue: node.left!.description,
+        attribute: 'Component',
+        bomAValue: node.left!.partNumber,
         bomBValue: '\u2014',
       })
-    } else if (node.changedFields && node.changedFields.length > 0) {
-      for (const field of node.changedFields) {
+    } else if (hasOwnChanges) {
+      for (const field of node.changedFields!) {
         entries.push({
           status: 'MODIFIED',
-          component: componentId,
+          path,
+          component: partId,
           attribute: field.field,
-          bomAValue: field.oldValue != null ? String(field.oldValue) : '\u2014',
-          bomBValue: field.newValue != null ? String(field.newValue) : '\u2014',
+          bomAValue: formatFieldValue(field.field, field.oldValue),
+          bomBValue: formatFieldValue(field.field, field.newValue),
         })
       }
     }
+
+    node.children.forEach((c) => walk(c, path))
   }
+
+  walk(diff, '')
   return entries
 }
 

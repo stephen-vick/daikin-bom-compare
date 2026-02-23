@@ -8,7 +8,7 @@ import { MetadataView } from './components/MetadataView'
 import { Footer } from './components/Footer'
 import { getProduct, getVersion } from './data/mockData'
 import { usePortalStore } from './store/usePortalStore'
-import { treeDiff, countNodeChanges, flattenDiff } from './utils/treeDiff'
+import { treeDiff, countNodeChanges } from './utils/treeDiff'
 
 function App() {
   const {
@@ -32,13 +32,6 @@ function App() {
   }, [diff])
 
   const totalDiffs = counts.added + counts.removed + counts.changed
-  const totalNodes = (bomA?.nodeCount ?? 0) + (bomB?.nodeCount ?? 0)
-
-  const uniqueChangedComponents = useMemo(() => {
-    if (!diff) return 0
-    const flat = flattenDiff(diff)
-    return flat.filter((n) => n.status !== 'UNCHANGED' && (n.children.length === 0 || (n.changedFields && n.changedFields.length > 0))).length
-  }, [diff])
 
   return (
     <div className="app">
@@ -48,36 +41,37 @@ function App() {
       {compared && bomA && bomB && diff ? (
         <>
           <div className="sub-toolbar">
-            <button
-              className={`btn-toggle ${showDiffsOnly ? 'active' : ''}`}
-              onClick={() => setShowDiffsOnly(!showDiffsOnly)}
-            >
-              &#9998; {showDiffsOnly ? 'Showing diffs only' : 'Show diffs only'}
-            </button>
+            <label className="diff-checkbox-label">
+              <input
+                type="checkbox"
+                checked={showDiffsOnly}
+                onChange={(e) => setShowDiffsOnly(e.target.checked)}
+              />
+              &#128065; Differences only
+            </label>
 
             <div className="tab-bar">
               <button
                 className={`tab-item ${activeTab === 'side-by-side' ? 'active' : ''}`}
                 onClick={() => setActiveTab('side-by-side')}
               >
-                &#9776; Side-by-Side
+                Side-by-Side
               </button>
               <button
                 className={`tab-item ${activeTab === 'delta-summary' ? 'active' : ''}`}
                 onClick={() => setActiveTab('delta-summary')}
               >
-                &#9636; Delta Summary <span className="tab-badge">{uniqueChangedComponents}</span>
+                Delta Summary <span className="tab-badge">{totalDiffs}</span>
               </button>
               <button
                 className={`tab-item ${activeTab === 'metadata' ? 'active' : ''}`}
                 onClick={() => setActiveTab('metadata')}
               >
-                &#9881; Metadata
+                Metadata
               </button>
             </div>
 
             <div className="search-box">
-              &#128269;
               <input
                 type="text"
                 placeholder="Search components..."
@@ -98,7 +92,7 @@ function App() {
               />
             )}
             {activeTab === 'delta-summary' && <DeltaSummaryView diff={diff} />}
-            {activeTab === 'metadata' && <MetadataView bomA={bomA} bomB={bomB} />}
+            {activeTab === 'metadata' && <MetadataView bomA={bomA} bomB={bomB} diff={diff} />}
           </div>
         </>
       ) : (
@@ -107,11 +101,9 @@ function App() {
 
       <Footer
         compared={compared}
-        totalNodes={totalNodes}
+        nodeCountA={bomA?.nodeCount ?? 0}
+        nodeCountB={bomB?.nodeCount ?? 0}
         diffCount={totalDiffs}
-        added={counts.added}
-        removed={counts.removed}
-        changed={counts.changed}
         productModel={product?.modelNumber ?? ''}
       />
     </div>
