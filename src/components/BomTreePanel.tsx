@@ -88,7 +88,6 @@ export function BomTreePanel({ version, side, diff, showDiffsOnly, searchQuery }
     if (side === 'B' && status === 'REMOVED') return null
 
     const qty = getQtyDisplay(node)
-    const showBadge = status === 'MODIFIED' && !isAssembly
     const badgeClass = status === 'REMOVED' ? 'del' : status === 'ADDED' ? 'add' : 'chg'
 
     return (
@@ -108,9 +107,9 @@ export function BomTreePanel({ version, side, diff, showDiffsOnly, searchQuery }
           <span className="tree-desc">{node.description}</span>
           <span className="tree-right">
             {qty && <span className={`qty-badge ${qty.isChanged ? 'changed' : ''}`}>{qty.text}</span>}
-            {showBadge && <span className={`diff-badge ${badgeClass}`}>{status === 'REMOVED' ? 'DEL' : status === 'ADDED' ? 'ADD' : 'CHG'}</span>}
-            {status === 'REMOVED' && <span className="diff-badge del">DEL</span>}
-            {status === 'ADDED' && <span className="diff-badge add">ADD</span>}
+            {!isAssembly && status === 'MODIFIED' && <span className={`diff-badge ${badgeClass}`}>CHG</span>}
+            {!isAssembly && status === 'REMOVED' && <span className="diff-badge del">DEL</span>}
+            {!isAssembly && status === 'ADDED' && <span className="diff-badge add">ADD</span>}
           </span>
         </div>
         {hasChildren && isOpen && node.children.map((child) => renderNode(child, depth + 1))}
