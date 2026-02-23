@@ -51,27 +51,26 @@ export function BomTreePanel({ version, side, diff, showDiffsOnly, searchQuery }
   }
 
   const getQtyDisplay = (node: BomNode): { text: string; isChanged: boolean } | null => {
-    if (!diff) return null
-    const status = statusMap.get(node.id)
-    if (status !== 'MODIFIED') return null
+    if (node.children.length > 0) return null
+    if (node.quantity <= 1) return null
 
-    function findDiffNode(d: DiffNode, id: string): DiffNode | null {
-      if (d.nodeId === id) return d
-      for (const c of d.children) {
-        const r = findDiffNode(c, id)
-        if (r) return r
+    let isChanged = false
+    if (diff) {
+      function findDiffNode(d: DiffNode, id: string): DiffNode | null {
+        if (d.nodeId === id) return d
+        for (const c of d.children) {
+          const r = findDiffNode(c, id)
+          if (r) return r
+        }
+        return null
       }
-      return null
+      const dn = findDiffNode(diff, node.id)
+      if (dn?.changedFields?.some((f) => f.field === 'Quantity')) {
+        isChanged = true
+      }
     }
 
-    const dn = findDiffNode(diff, node.id)
-    if (!dn?.changedFields) return null
-    const qtyField = dn.changedFields.find((f) => f.field === 'Quantity')
-    if (!qtyField) return null
-
-    const val = side === 'A' ? qtyField.oldValue : qtyField.newValue
-    const sign = Number(qtyField.newValue) > Number(qtyField.oldValue) ? '+' : ''
-    return { text: `${sign}${val}`, isChanged: true }
+    return { text: `+${node.quantity}`, isChanged }
   }
 
   const renderNode = (node: BomNode, depth: number): React.ReactNode => {
