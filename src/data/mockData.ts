@@ -191,10 +191,10 @@ const dx20vcVersions: BomVersion[] = [
     id: 'svc-v2.0',
     type: 'SERVICE',
     label: 'Service BOM v2.0',
-    dropdownLabel: 'Service BOM v2.0 \u2014 Prophecy MDM',
+    dropdownLabel: 'Service BOM v2.0 \u2014 Profisee MDM',
     meta: {
       version: 'Service BOM v2.0',
-      sourceSystem: 'Prophecy MDM',
+      sourceSystem: 'Profisee MDM',
       status: 'Active',
       effectiveDate: '2026-02-10',
       owner: 'K. Patel (Service Manager)',
